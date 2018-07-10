@@ -16,10 +16,9 @@ TOKEN = ""
 GROUP_ID = ""
 URL = "https://api.vk.com/method/{{key}}?access_token={}&v=5.74".format(TOKEN)
 
+# Some constants
 COUNT_STEP = 100
 EXECUTE_SIZE = 25
-
-# user["sex"] = 2(м), 1(ж), 0(?)
 
 def counter(amount=EXECUTE_SIZE):
     for i in range(amount):
@@ -81,16 +80,15 @@ def collect_profiles(collection, profiles):
         }
 
 def main():
-    # Some constants
+    # Time constants
     day_ago = time.time() - 24 * 60 * 60
     week_ago = time.time() - 7 * 24 * 60 * 60
     month_ago = time.time() - 4 * 7 * 24 * 60 * 60
 
     print("> script is started...")
 
-    # Test for work and receiving "count"
+    # Get initial data
     wall = req("wall.get", owner_id="-" + str(GROUP_ID), count=COUNT_STEP)
-
     owner_only_wall = req("wall.get", owner_id="-" + str(GROUP_ID), count=COUNT_STEP, filter="owner")
 
     count = wall["count"]
