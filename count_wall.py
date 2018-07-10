@@ -151,6 +151,11 @@ def main():
 
                     day_comments.append([post["owner_id"], post["id"], 0, "day"])
 
+                    if post["likes"]["count"] >= post_max_likes_count_week:
+                        post_max_likes_count_week = post["likes"]["count"]
+                        post_max_likes_week = "vk.com/wall" + str(post["owner_id"]) + \
+                            "_" + str(post["id"])
+
                 elif post["date"] >= week_ago:
                     result["amounts"]["week"] += 1
                     result["amounts"]["month"] += 1
