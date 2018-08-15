@@ -7,13 +7,14 @@
 # Author:
 # @michaelkrukov / michaelkrukov.ru
 
-import requests, json, time, math
+import datetime, requests, json, time, math
 from copy import deepcopy
 
 
 # Fill here
 TOKEN = ""
 GROUP_ID = ""
+CHECK_COMMENTS = True
 URL = "https://api.vk.com/method/{{key}}?access_token={}&v=5.74".format(TOKEN)
 
 # Some constants
@@ -81,9 +82,11 @@ def collect_profiles(collection, profiles):
 
 def main():
     # Time constants
-    day_ago = time.time() - 24 * 60 * 60
-    week_ago = time.time() - 7 * 24 * 60 * 60
-    month_ago = time.time() - 4 * 7 * 24 * 60 * 60
+    current_day = datetime.datetime.now().replace(minute=0, hour=0, second=0, microsecond=0).timestamp()
+
+    day_ago = current_day - 24 * 60 * 60
+    week_ago = current_day - 7 * 24 * 60 * 60
+    month_ago = current_day - 4 * 7 * 24 * 60 * 60
 
     print("> script is started...")
 
@@ -119,8 +122,12 @@ def main():
                 break
 
             current_requests.append(
-                executable("wall.get", owner_id="-" + str(GROUP_ID), count=COUNT_STEP,
-                    offset=current_offset)
+                executable(
+                    "wall.get",
+                    owner_id="-" + str(GROUP_ID),
+                    count=COUNT_STEP,
+                    offset=current_offset
+                )
             )
 
             current_offset += COUNT_STEP
@@ -173,6 +180,7 @@ def main():
                         post_max_likes_count_week = post["likes"]["count"]
                         post_max_likes_week = "vk.com/wall" + str(post["owner_id"]) + \
                             "_" + str(post["id"])
+
                 elif post["date"] >= month_ago:
                     result["amounts"]["month"] += 1
 
@@ -182,8 +190,11 @@ def main():
                         result["amounts_others_only"]["month"] += 1
 
                     month_comments.append([post["owner_id"], post["id"], 0, "month"])
+
                 else:
-                    posts_ready = True
+                    if not post.get("is_pinned"):
+                        posts_ready = True
+
                     continue
 
                 if post["likes"]["count"] >= post_max_likes_count:
@@ -194,51 +205,61 @@ def main():
         result["max_likes_post"] = post_max_likes or "Пусто"
         result["max_likes_post_week"] = post_max_likes_week or "Пусто"
 
-    print("> getting and processing comments...")
+    if CHECK_COMMENTS:
+        print("> getting and processing comments...")
 
-    new_packs = []
-    packs = day_comments + week_comments + month_comments
+        new_packs = []
+        packs = day_comments + week_comments + month_comments
 
-    while packs:
-        current_requests.clear()
+        while packs:
+            current_requests.clear()
 
-        for owner_id, post_id, offset, state in packs:
-            current_requests.append(
-                executable("wall.getComments", owner_id=owner_id,
-                    post_id=post_id, count=COUNT_STEP, offset=offset,
-                    preview_length=1, need_likes=1, extended=1)
-            )
+            for owner_id, post_id, offset, state in packs:
+                current_requests.append(
+                    executable("wall.getComments", owner_id=owner_id,
+                        post_id=post_id, count=COUNT_STEP, offset=offset,
+                        preview_length=1, need_likes=1, extended=1)
+                )
 
-        for i in range(math.ceil(len(current_requests)/25)):
-            for pack, res in zip(packs[i*25:i*25 + 25], execute(current_requests[i*25:i*25 + 25])):
-                collect_profiles(profiles, res["profiles"])
-
-                for item in res["items"]:
-                    if item["from_id"] not in profiles:
+            for i in range(math.ceil(len(current_requests) / 25)):
+                for pack, res in zip(packs[i*25 : i*25 + 25], execute(current_requests[i*25 : i*25 + 25])):
+                    if not res:
                         continue
 
-                    prof = profiles[item["from_id"]]
+                    collect_profiles(profiles, res["profiles"])
 
-                    if pack[3] == "day":
-                        prof["likes_day"] += item["likes"]["count"]
+                    for item in res["items"]:
+                        if item["from_id"] not in profiles:
+                            continue
 
-                    if pack[3] in ("day", "week"):
-                        prof["likes_week"] += item["likes"]["count"]
+                        prof = profiles[item["from_id"]]
 
-                    if pack[3] in ("day", "week", "month"):
-                        prof["likes_month"] += item["likes"]["count"]
+                        if pack[3] == "day":
+                            prof["likes_day"] += item["likes"]["count"]
 
-                if pack[2] + COUNT_STEP < res["count"]:
-                    new_packs.append([pack[0], pack[1], pack[2] + COUNT_STEP, pack[3]])
+                        if pack[3] in ("day", "week"):
+                            prof["likes_week"] += item["likes"]["count"]
 
-        packs = new_packs
-        new_packs = []
+                        if pack[3] in ("day", "week", "month"):
+                            prof["likes_month"] += item["likes"]["count"]
+
+                    if pack[2] + COUNT_STEP < res["count"]:
+                        new_packs.append([pack[0], pack[1], pack[2] + COUNT_STEP, pack[3]])
+
+            packs = new_packs
+            new_packs = []
 
     result["profiles"] = profiles
 
-    result["top_commentors_day"] = sorted(profiles.values(), key=lambda x: -x["likes_day"])[:3]
-    result["top_commentors_week"] = sorted(profiles.values(), key=lambda x: -x["likes_week"])[:3]
-    result["top_commentors_month"] = sorted(profiles.values(), key=lambda x: -x["likes_month"])[:3]
+    if CHECK_COMMENTS:
+        result["top_commentors_day"] = sorted(profiles.values(), key=lambda x: -x["likes_day"])[:3]
+        result["top_commentors_week"] = sorted(profiles.values(), key=lambda x: -x["likes_week"])[:3]
+        result["top_commentors_month"] = sorted(profiles.values(), key=lambda x: -x["likes_month"])[:3]
+
+    else:
+        result["top_commentors_day"] = []
+        result["top_commentors_week"] = []
+        result["top_commentors_month"] = []
 
     return result
 
