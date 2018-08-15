@@ -48,7 +48,11 @@ def executable(key, **params):
         result += '"{}": '.format(k)
 
         if isinstance(v, str):
-            result += '"' + v.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "<br>") + '"'
+            result += '"' + v \
+                .replace("\\", "\\\\") \
+                .replace('"', '\\"') \
+                .replace("\n", "<br>") + '"'
+
         elif isinstance(v, int):
             result += str(v)
         else:
@@ -82,9 +86,10 @@ def collect_profiles(collection, profiles):
 
 def main():
     # Time constants
-    current_day = datetime.datetime.now().replace(minute=0, hour=0, second=0, microsecond=0).timestamp()
+    current_day = datetime.datetime.now() \
+        .replace(minute=0, hour=0, second=0, microsecond=0).timestamp()
 
-    day_ago = current_day - 24 * 60 * 60
+    day_ago = current_day
     week_ago = current_day - 7 * 24 * 60 * 60
     month_ago = current_day - 4 * 7 * 24 * 60 * 60
 
@@ -92,7 +97,13 @@ def main():
 
     # Get initial data
     wall = req("wall.get", owner_id="-" + str(GROUP_ID), count=COUNT_STEP)
-    owner_only_wall = req("wall.get", owner_id="-" + str(GROUP_ID), count=COUNT_STEP, filter="owner")
+
+    owner_only_wall = req(
+        "wall.get",
+        owner_id="-" + str(GROUP_ID),
+        count=COUNT_STEP,
+        filter="owner"
+    )
 
     count = wall["count"]
     owner_count = owner_only_wall["count"]
@@ -100,9 +111,24 @@ def main():
 
     profiles = {}
     result = {
-        "amounts": {"day": 0, "week": 0, "month": 0, "all": count},
-        "amounts_others_only": {"day": 0, "week": 0, "month": 0, "all": others_count},
-        "amounts_owner_only": {"day": 0, "week": 0, "month": 0, "all": owner_count}
+        "amounts": {
+            "day": 0,
+            "week": 0,
+            "month": 0,
+            "all": count
+        },
+        "amounts_others_only": {
+            "day": 0,
+            "week": 0,
+            "month": 0,
+            "all": others_count
+        },
+        "amounts_owner_only": {
+            "day": 0,
+            "week": 0,
+            "month": 0,
+            "all": owner_count
+        }
     }
 
     day_comments = []
@@ -138,7 +164,8 @@ def main():
         post_max_likes_count_week = -1
         post_max_likes_week = ""
 
-        print("> getting and processing posts up to {}...".format(current_offset))
+        print("> getting and processing posts up to {}..." \
+            .format(current_offset))
 
         for res in execute(current_requests):
             for post in res["items"]:
@@ -156,12 +183,19 @@ def main():
                         result["amounts_others_only"]["week"] += 1
                         result["amounts_others_only"]["month"] += 1
 
-                    day_comments.append([post["owner_id"], post["id"], 0, "day"])
+                    day_comments.append(
+                        [
+                            post["owner_id"],
+                            post["id"],
+                            0,
+                            "day"
+                        ]
+                    )
 
                     if post["likes"]["count"] >= post_max_likes_count_week:
                         post_max_likes_count_week = post["likes"]["count"]
-                        post_max_likes_week = "vk.com/wall" + str(post["owner_id"]) + \
-                            "_" + str(post["id"])
+                        post_max_likes_week = "vk.com/wall" + \
+                            str(post["owner_id"]) + "_" + str(post["id"])
 
                 elif post["date"] >= week_ago:
                     result["amounts"]["week"] += 1
@@ -174,12 +208,19 @@ def main():
                         result["amounts_others_only"]["week"] += 1
                         result["amounts_others_only"]["month"] += 1
 
-                    week_comments.append([post["owner_id"], post["id"], 0, "week"])
+                    week_comments.append(
+                        [
+                            post["owner_id"],
+                            post["id"],
+                            0,
+                            "week"
+                        ]
+                    )
 
                     if post["likes"]["count"] >= post_max_likes_count_week:
                         post_max_likes_count_week = post["likes"]["count"]
-                        post_max_likes_week = "vk.com/wall" + str(post["owner_id"]) + \
-                            "_" + str(post["id"])
+                        post_max_likes_week = "vk.com/wall" + \
+                            str(post["owner_id"]) + "_" + str(post["id"])
 
                 elif post["date"] >= month_ago:
                     result["amounts"]["month"] += 1
@@ -189,7 +230,14 @@ def main():
                     else:
                         result["amounts_others_only"]["month"] += 1
 
-                    month_comments.append([post["owner_id"], post["id"], 0, "month"])
+                    month_comments.append(
+                        [
+                            post["owner_id"],
+                            post["id"],
+                            0,
+                            "month"
+                        ]
+                    )
 
                 else:
                     if not post.get("is_pinned"):
@@ -216,13 +264,23 @@ def main():
 
             for owner_id, post_id, offset, state in packs:
                 current_requests.append(
-                    executable("wall.getComments", owner_id=owner_id,
-                        post_id=post_id, count=COUNT_STEP, offset=offset,
-                        preview_length=1, need_likes=1, extended=1)
+                    executable(
+                        "wall.getComments",
+                        owner_id=owner_id,
+                        post_id=post_id,
+                        count=COUNT_STEP,
+                        offset=offset,
+                        preview_length=1,
+                        need_likes=1,
+                        extended=1
+                    )
                 )
 
             for i in range(math.ceil(len(current_requests) / 25)):
-                for pack, res in zip(packs[i*25 : i*25 + 25], execute(current_requests[i*25 : i*25 + 25])):
+                for pack, res in zip(
+                        packs[i * 25 : i * 25 + 25],
+                        execute(current_requests[i * 25 : i * 25 + 25])
+                ):
                     if not res:
                         continue
 
@@ -244,7 +302,14 @@ def main():
                             prof["likes_month"] += item["likes"]["count"]
 
                     if pack[2] + COUNT_STEP < res["count"]:
-                        new_packs.append([pack[0], pack[1], pack[2] + COUNT_STEP, pack[3]])
+                        new_packs.append(
+                            [
+                                pack[0],
+                                pack[1],
+                                pack[2] + COUNT_STEP,
+                                pack[3]
+                            ]
+                        )
 
             packs = new_packs
             new_packs = []
@@ -252,9 +317,20 @@ def main():
     result["profiles"] = profiles
 
     if CHECK_COMMENTS:
-        result["top_commentors_day"] = sorted(profiles.values(), key=lambda x: -x["likes_day"])[:3]
-        result["top_commentors_week"] = sorted(profiles.values(), key=lambda x: -x["likes_week"])[:3]
-        result["top_commentors_month"] = sorted(profiles.values(), key=lambda x: -x["likes_month"])[:3]
+        result["top_commentors_day"] = sorted(
+            profiles.values(),
+            key=lambda x: -x["likes_day"]
+        )[:3]
+
+        result["top_commentors_week"] = sorted(
+            profiles.values(),
+            key=lambda x: -x["likes_week"]
+        )[:3]
+
+        result["top_commentors_month"] = sorted(
+            profiles.values(),
+            key=lambda x: -x["likes_month"]
+        )[:3]
 
     else:
         result["top_commentors_day"] = []
